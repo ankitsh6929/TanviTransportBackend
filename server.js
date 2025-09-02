@@ -1,7 +1,12 @@
+// server.js
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+// at very top of server.js (after other requires)
+require('dotenv').config();
+const nodemailer = require('nodemailer');
+
 
 const app = express();
 app.use(cors());
@@ -56,7 +61,7 @@ app.get('/api/company', (req, res) => {
     name: "Tanvi Transport Company",
     logo: "/logo.png",
     tagline: "Quality Is Our Priority",
-    address: "Office No. 7 Golapi Market, Guwahati Assam 781001",
+    address: "No.47, Beltola College Road, Bongaon, Guwahati, Assam, 781028, India",
     email: "tanvitransportcompany@gmail.com",
     phone: ["6901244444", "9864535143"]
   });
@@ -64,7 +69,7 @@ app.get('/api/company', (req, res) => {
 
 app.get('/api/services', (req, res) => {
   res.json([
-    "Complete Shifting Solution", // fixed small typo
+    "Complete Shifting Solution",
     "Warehouse Service",
     "Parcel Service",
     "Defence Relocation Service",
@@ -78,14 +83,14 @@ app.get('/api/services', (req, res) => {
   ]);
 });
 
-// --- Quote/enquiry (same as yours)
+// --- Quote/enquiry (demo)
 app.post('/api/inquiry', (req, res) => {
   const { name, phone, email, typeOfMove, fromAddress, toAddress, date, description, instructions } = req.body;
   // Save/Email logic can go here
   res.json({ status: "success", message: "Inquiry received!" });
 });
 
-// --- Auth
+// --- Auth (kept for future, but the frontend no longer exposes login/register)
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
@@ -132,6 +137,56 @@ app.get('/api/admin/stats', authRequired, adminOnly, (req, res) => {
     scheduledMoves: 19,
   });
 });
+
+
+// POST /api/sendMail  (add this before app.listen)
+app.post('/api/sendMail', async (req, res) => {
+  const { name, email, mobile, date, from, to, requirement } = req.body || {};
+
+  // basic validation
+  if (!name || !email || !requirement) {
+    return res.status(400).json({ success: false, message: "Missing required fields (name, email, requirement)" });
+  }
+
+  try {
+    // create transporter using Gmail and App Password
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    // Compose message: send to your EMAIL_USER, set replyTo to visitor
+    const mailOptions = {
+      from: process.env.EMAIL_USER, // send from your own address (less likely to be blocked)
+      replyTo: email,
+      to: process.env.EMAIL_USER,   // you receive the email here
+      subject: `TTC enquiry from ${name} ${from ? `(${from} -> ${to || 'N/A'})` : ''}`,
+      text: [
+        `You have a new enquiry from Tanvi Transport Company website.`,
+        ``,
+        `Name: ${name}`,
+        `Email: ${email}`,
+        `Mobile: ${mobile || 'N/A'}`,
+        `From: ${from || 'N/A'}`,
+        `To: ${to || 'N/A'}`,
+        `Date: ${date || 'N/A'}`,
+        ``,
+        `Requirement:`,
+        `${requirement}`,
+      ].join('\n'),
+    };
+
+    await transporter.sendMail(mailOptions);
+    return res.json({ success: true, message: "Message sent successfully!" });
+  } catch (err) {
+    console.error("Error sending email:", err);
+    return res.status(500).json({ success: false, message: "Failed to send message." });
+  }
+});
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
