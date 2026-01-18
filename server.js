@@ -159,7 +159,10 @@ app.post('/api/sendMail', async (req, res) => {
   try {
     await sgMail.send({
       to: process.env.EMAIL_USER,
-      from: process.env.EMAIL_USER,
+      from:  {
+  email: process.env.EMAIL_USER,
+  name: "Tanvi Transport Company"
+},
       replyTo: email,
       subject: `TTC enquiry from ${name}`,
       text: `
