@@ -139,24 +139,75 @@ app.get('/api/admin/stats', authRequired, adminOnly, (req, res) => {
 });
 
 
-// POST /api/sendMail  (add this before app.listen)
+
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
 app.post('/api/sendMail', async (req, res) => {
   const { name, email, mobile, date, from, to, requirement } = req.body || {};
 
-  // basic validation
   if (!name || !email || !requirement) {
-    return res.status(400).json({ success: false, message: "Missing required fields (name, email, requirement)" });
+    return res.status(400).json({ success: false, message: "Missing fields" });
   }
 
   try {
-    // create transporter using Gmail and App Password
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
+    await sgMail.send({
+      to: process.env.EMAIL_USER,
+      from: process.env.EMAIL_USER,
+      replyTo: email,
+      subject: `TTC enquiry from ${name}`,
+      text: `
+Name: ${name}
+Email: ${email}
+Mobile: ${mobile || 'N/A'}
+From: ${from || 'N/A'}
+To: ${to || 'N/A'}
+Date: ${date || 'N/A'}
+
+Requirement:
+${requirement}
+      `,
     });
+
+    res.json({ success: true, message: "Message sent successfully!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Email failed" });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // POST /api/sendMail  (add this before app.listen)
+// app.post('/api/sendMail', async (req, res) => {
+//   const { name, email, mobile, date, from, to, requirement } = req.body || {};
+
+//   // basic validation
+//   if (!name || !email || !requirement) {
+//     return res.status(400).json({ success: false, message: "Missing required fields (name, email, requirement)" });
+//   }
+
+//   try {
+//     // create transporter using Gmail and App Password
+//     const transporter = nodemailer.createTransport({
+//       service: 'gmail',
+//       auth: {
+//         user: process.env.EMAIL_USER,
+//         pass: process.env.EMAIL_PASS,
+//       },
+//     });
 
     // Compose message: send to your EMAIL_USER, set replyTo to visitor
     const mailOptions = {
